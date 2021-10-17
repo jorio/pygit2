@@ -953,7 +953,7 @@ PyDoc_STRVAR(Repository_create_commit__doc__,
   "Create a new commit object, return its oid.");
 
 PyObject *
-Repository_create_commit(Repository *self, PyObject *args)
+Repository_create_commit(Repository *self, PyObject *args, PyObject *kwds)
 {
     Signature *py_author, *py_committer;
     PyObject *py_oid, *py_message, *py_parents, *py_parent;
@@ -966,14 +966,17 @@ Repository_create_commit(Repository *self, PyObject *args)
     git_commit **parents = NULL;
     int i = 0;
 
-    if (!PyArg_ParseTuple(args, "zO!O!OOO!|s",
-                          &update_ref,
-                          &SignatureType, &py_author,
-                          &SignatureType, &py_committer,
-                          &py_message,
-                          &py_oid,
-                          &PyList_Type, &py_parents,
-                          &encoding))
+    char *kwlist[] = {"reference_name", "author", "committer", "message",
+                      "tree", "parents", "encoding", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "zO!O!OOO!|s", kwlist,
+                                     &update_ref,
+                                     &SignatureType, &py_author,
+                                     &SignatureType, &py_committer,
+                                     &py_message,
+                                     &py_oid,
+                                     &PyList_Type, &py_parents,
+                                     &encoding))
         return NULL;
 
     size_t len = py_oid_to_git_oid(py_oid, &oid);
@@ -2140,7 +2143,7 @@ PyMethodDef Repository_methods[] = {
     METHOD(Repository, create_blob_fromworkdir, METH_O),
     METHOD(Repository, create_blob_fromdisk, METH_VARARGS),
     METHOD(Repository, create_blob_fromiobase, METH_O),
-    METHOD(Repository, create_commit, METH_VARARGS),
+    METHOD(Repository, create_commit, METH_VARARGS | METH_KEYWORDS),
     METHOD(Repository, create_tag, METH_VARARGS),
     METHOD(Repository, TreeBuilder, METH_VARARGS),
     METHOD(Repository, walk, METH_VARARGS),

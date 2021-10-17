@@ -1035,6 +1035,134 @@ out:
 }
 
 
+PyDoc_STRVAR(Repository_amend_commit__doc__,
+  "amend_commit(commit_to_amend, reference_name[, author, committer, message, tree, encoding]) -> Oid\n"
+  "\n"
+  "Amend an existing commit by replacing only explicitly passed values,\n"
+  "return its oid.\n"
+  "\n"
+  "This creates a new commit that is exactly the same as the old commit,\n"
+  "except that any explicitly passed values will be updated. The new commit\n"
+  "has the same parents as the old commit.\n"
+  "\n"
+  "You may omit the `author`, `committer`, `message`, `tree`, and\n"
+  "`message_encoding` parameters, in which case this will use the values\n"
+  "from the original `commit_to_amend`.\n"
+  "\n"
+  "Parameters:\n"
+  "\n"
+  "commit_to_amend : :py:class:`~pygit2.Commit`\n"
+  "    A Commit object representing the commit to amend.\n"
+  "\n"
+  "reference_name : str\n"
+  "    If not `None`, name of the reference that will be updated to point to\n"
+  "    the newly rewritten commit. Use \"HEAD\" to update the HEAD of the\n"
+  "    current branch and make it point to the rewritten commit.\n"
+  "    If you want to amend a commit that is not currently the tip of the\n"
+  "    branch and then rewrite the following commits to reach a ref, pass\n"
+  "    this as `None` and update the rest of the commit chain and ref\n"
+  "    separately.\n"
+  "\n"
+  "author : :py:class:`~pygit2.Signature`\n"
+  "    If not omitted, replace the old commit's author signature with this\n"
+  "    one.\n"
+  "\n"
+  "committer : :py:class:`~pygit2.Signature`\n"
+  "    If not omitted, replace the old commit's committer signature with this\n"
+  "    one.\n"
+  "\n"
+  "message : str\n"
+  "    If not omitted, replace the old commit's message with this one.\n"
+  "\n"
+  "tree : :py:class:`~pygit2.Oid`\n"
+  "    If not omitted, replace the old commit's tree with the one designated\n"
+  "    by this Oid.\n"
+  "\n"
+  "encoding : str\n"
+  "    Optional encoding for `message`.\n"
+);
+
+PyObject *
+Repository_amend_commit(Repository *self, PyObject *args, PyObject *kwds)
+{
+    PyObject *py_result = NULL;
+    git_oid oid;  /* oid of created commit */
+
+    Commit *py_commit_to_amend;
+    Signature *py_author = NULL;
+    Signature *py_committer = NULL;
+    PyObject *py_message = NULL;
+    PyObject *tmessage = NULL;
+    PyObject *py_tree_oid = NULL;
+
+    /* Values passed on to libgit2. All of those are allowed to be null if omitted */
+    const char *update_ref = NULL;
+    const git_signature *author = NULL;
+    const git_signature *committer = NULL;
+    const char *message_encoding = NULL;
+    const char *message = NULL;
+    git_tree *tree = NULL;
+
+    char *kwlist[] = {"commit_to_amend", "reference_name", "author",
+                      "committer", "message", "tree", "encoding", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!z|O!O!OOs", kwlist,
+                                     &CommitType, &py_commit_to_amend,
+                                     &update_ref,
+                                     &SignatureType, &py_author,
+                                     &SignatureType, &py_committer,
+                                     &py_message,
+                                     &py_tree_oid,
+                                     &message_encoding))
+        return NULL;
+
+    if (py_author != NULL) {
+        author = py_author->signature;
+    }
+
+    if (py_committer != NULL) {
+        committer = py_committer->signature;
+    }
+
+    if (py_message != NULL) {
+        message = pgit_borrow_encoding(py_message, message_encoding, NULL, &tmessage);
+    }
+
+    if (py_tree_oid != NULL) {
+        git_oid tree_oid;
+        size_t len = py_oid_to_git_oid(py_tree_oid, &tree_oid);
+        if (len == 0)
+            goto out;
+        int err = git_tree_lookup_prefix(&tree, self->repo, &tree_oid, len);
+        if (err < 0) {
+            Error_set(err);
+            goto out;
+        }
+    }
+
+    int err;
+    err = git_commit_amend(&oid, py_commit_to_amend->commit, update_ref,
+                           author, committer, message_encoding, message, tree);
+    if (err < 0) {
+        Error_set(err);
+        goto out;
+    }
+
+    py_result = git_oid_to_python(&oid);
+
+out:
+    if (tmessage != NULL) {
+        Py_DECREF(tmessage);
+        tmessage = NULL;
+    }
+    if (tree != NULL) {
+        git_tree_free(tree);
+        tree = NULL;
+    }
+    return py_result;
+}
+
+
 PyDoc_STRVAR(Repository_create_tag__doc__,
   "create_tag(name, oid, type, tagger, message) -> Oid\n"
   "\n"
@@ -2144,6 +2272,7 @@ PyMethodDef Repository_methods[] = {
     METHOD(Repository, create_blob_fromdisk, METH_VARARGS),
     METHOD(Repository, create_blob_fromiobase, METH_O),
     METHOD(Repository, create_commit, METH_VARARGS | METH_KEYWORDS),
+    METHOD(Repository, amend_commit, METH_VARARGS | METH_KEYWORDS),
     METHOD(Repository, create_tag, METH_VARARGS),
     METHOD(Repository, TreeBuilder, METH_VARARGS),
     METHOD(Repository, walk, METH_VARARGS),

@@ -222,6 +222,8 @@ PyDoc_STRVAR(Tree_diff_to_workdir__doc__,
 PyObject *
 Tree_diff_to_workdir(Tree *self, PyObject *args)
 {
+    git_repository *repo = self->repo->repo;
+    git_tree *tree = self->tree;
     git_diff_options opts = GIT_DIFF_OPTIONS_INIT;
     git_diff *diff;
     int err;
@@ -232,7 +234,10 @@ Tree_diff_to_workdir(Tree *self, PyObject *args)
 
     if (Object__load((Object*)self) == NULL) { return NULL; } // Lazy load
 
-    err = git_diff_tree_to_workdir(&diff, self->repo->repo, self->tree, &opts);
+    Py_BEGIN_ALLOW_THREADS
+    err = git_diff_tree_to_workdir(&diff, repo, tree, &opts);
+    Py_END_ALLOW_THREADS
+
     if (err < 0)
         return Error_set(err);
 
@@ -264,6 +269,8 @@ PyDoc_STRVAR(Tree_diff_to_index__doc__,
 PyObject *
 Tree_diff_to_index(Tree *self, PyObject *args, PyObject *kwds)
 {
+    git_repository *repo = self->repo->repo;
+    git_tree *tree = self->tree;
     git_diff_options opts = GIT_DIFF_OPTIONS_INIT;
     git_diff *diff;
     git_index *index;
@@ -306,7 +313,9 @@ Tree_diff_to_index(Tree *self, PyObject *args, PyObject *kwds)
     /* Call git_diff_tree_to_index */
     if (Object__load((Object*)self) == NULL) { return NULL; } // Lazy load
 
-    err = git_diff_tree_to_index(&diff, self->repo->repo, self->tree, index, &opts);
+    Py_BEGIN_ALLOW_THREADS
+    err = git_diff_tree_to_index(&diff, repo, tree, index, &opts);
+    Py_END_ALLOW_THREADS
     Py_DECREF(py_idx_ptr);
 
     if (err < 0)
@@ -348,6 +357,7 @@ PyDoc_STRVAR(Tree_diff_to_tree__doc__,
 PyObject *
 Tree_diff_to_tree(Tree *self, PyObject *args, PyObject *kwds)
 {
+    git_repository *repo = self->repo->repo;
     git_diff_options opts = GIT_DIFF_OPTIONS_INIT;
     git_diff *diff;
     git_tree *from, *to = NULL, *tmp;
@@ -377,7 +387,10 @@ Tree_diff_to_tree(Tree *self, PyObject *args, PyObject *kwds)
         to = tmp;
     }
 
-    err = git_diff_tree_to_tree(&diff, self->repo->repo, from, to, &opts);
+    Py_BEGIN_ALLOW_THREADS
+    err = git_diff_tree_to_tree(&diff, repo, from, to, &opts);
+    Py_END_ALLOW_THREADS
+
     if (err < 0)
         return Error_set(err);
 

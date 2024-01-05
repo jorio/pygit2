@@ -1030,6 +1030,7 @@ PyDoc_STRVAR(Diff_find_similar__doc__,
 PyObject *
 Diff_find_similar(Diff *self, PyObject *args, PyObject *kwds)
 {
+    git_diff *diff = self->diff;
     int err;
     git_diff_find_options opts = GIT_DIFF_FIND_OPTIONS_INIT;
 
@@ -1043,7 +1044,10 @@ Diff_find_similar(Diff *self, PyObject *args, PyObject *kwds)
             &opts.rename_limit))
         return NULL;
 
-    err = git_diff_find_similar(self->diff, &opts);
+    Py_BEGIN_ALLOW_THREADS
+    err = git_diff_find_similar(diff, &opts);
+    Py_END_ALLOW_THREADS
+
     if (err < 0)
         return Error_set(err);
 

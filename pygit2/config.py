@@ -28,7 +28,10 @@ try:
 except ImportError:
     from cached_property import cached_property
 
+from typing import Union
+
 # Import from pygit2
+from .enums import ConfigLevel
 from .errors import check_error
 from .ffi import ffi, C
 from .utils import to_bytes
@@ -236,7 +239,7 @@ class Config:
 
         return res[0]
 
-    def add_file(self, path, level=0, force=0):
+    def add_file(self, path, level: Union[ConfigLevel, int], force=False):
         """Add a config file instance to an existing config."""
 
         err = C.git_config_add_file_ondisk(
@@ -351,9 +354,16 @@ class ConfigEntry:
         return ffi.string(self.c_value)
 
     @cached_property
-    def level(self):
-        """The entry's ``git_config_level_t`` value."""
-        return self._entry.level
+    def level(self) -> Union[ConfigLevel, int]:
+        """The entry's priority level.
+        Return an enums.ConfigLevel constant if the level matches one of
+        libgit2's predefined levels, otherwise return an int.
+        """
+        level = self._entry.level
+        try:
+            return ConfigLevel(level)
+        except ValueError:
+            return level
 
     @property
     def name(self):

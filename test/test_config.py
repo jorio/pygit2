@@ -28,6 +28,7 @@ from pathlib import Path
 import pytest
 
 from pygit2 import Config
+from pygit2.enums import ConfigLevel
 from . import utils
 
 
@@ -152,7 +153,7 @@ def test_multivar():
         new_file.write('[this]\n\tthat = foobar\n\tthat = foobeer\n')
 
     config = Config()
-    config.add_file(CONFIG_FILENAME, 6)
+    config.add_file(CONFIG_FILENAME, ConfigLevel.WORKTREE)
     assert 'this.that' in config
 
     assert ['foobar', 'foobeer'] == list(config.get_multivar('this.that'))
@@ -178,6 +179,7 @@ def test_iterator(config):
     lst = {}
     for entry in config:
         assert entry.level > -1
+        assert isinstance(entry.level, ConfigLevel)
         lst[entry.name] = entry.value
 
     assert 'core.bare' in lst
